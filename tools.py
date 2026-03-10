@@ -1,9 +1,6 @@
 import os
 import re
-import signal
-import selectors
 import subprocess
-import time
 import glob as globlib
 
 RESET, BOLD, DIM = "\033[0m", "\033[1m", "\033[2m"
@@ -18,6 +15,7 @@ def read(path: str, offset: int = 0, limit: int = None):
 
 
 def write(path: str, content: str):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         f.write(content)
     return "ok"
@@ -61,78 +59,15 @@ def grep(pat: str, path: str = "."):
 
 
 def bash(cmd: str, timeout: float = 30):
-    timeout = float(timeout)
-    proc = subprocess.Popen(
-        cmd, shell=True,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=False,
-        start_new_session=True,
-    )
-    selector = selectors.DefaultSelector()
-    selector.register(proc.stdout, selectors.EVENT_READ)
-    output_parts = []
-    pending = ""
-    deadline = time.monotonic() + timeout
-    timed_out = False
-
-    def flush_complete_lines():
-        nonlocal pending
-        while "\n" in pending:
-            line, pending = pending.split("\n", 1)
-            print(f"  {DIM}│ {line}{RESET}", flush=True)
-
     try:
-        while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                timed_out = True
-                break
-
-            events = selector.select(timeout=min(0.2, remaining))
-            if events:
-                chunk = os.read(proc.stdout.fileno(), 4096)
-                if chunk:
-                    text = chunk.decode("utf-8", errors="replace")
-                    output_parts.append(text)
-                    pending += text
-                    flush_complete_lines()
-
-            if proc.poll() is not None:
-                while True:
-                    chunk = os.read(proc.stdout.fileno(), 4096)
-                    if not chunk:
-                        break
-                    text = chunk.decode("utf-8", errors="replace")
-                    output_parts.append(text)
-                    pending += text
-                    flush_complete_lines()
-                break
-    finally:
-        selector.unregister(proc.stdout)
-        selector.close()
-
-    if timed_out and proc.poll() is None:
-        os.killpg(proc.pid, signal.SIGTERM)
-        try:
-            proc.wait(timeout=1)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
-            proc.wait()
-
-        # Grab any trailing bytes emitted while the process was shutting down.
-        while True:
-            chunk = os.read(proc.stdout.fileno(), 4096)
-            if not chunk:
-                break
-            text = chunk.decode("utf-8", errors="replace")
-            output_parts.append(text)
-            pending += text
-            flush_complete_lines()
-
-        output_parts.append(f"\n(timed out after {timeout:g}s)")
-
-    if pending:
-        print(f"  {DIM}│ {pending.rstrip()}{RESET}", flush=True)
-
-    return "".join(output_parts).strip() or "(empty)"
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True,
+            timeout=float(timeout), stdin=subprocess.DEVNULL,
+        )
+        out = (result.stdout + result.stderr).strip()
+    except subprocess.TimeoutExpired as e:
+        out = ((e.stdout or "") + (e.stderr or "")).strip()
+        out += f"\n(timed out after {timeout:g}s)"
+    if out:
+        print(f"  {DIM}│ {out}{RESET}", flush=True)
+    return out or "(empty)"
