@@ -40,3 +40,26 @@ uv run python main.py
 ```
 
 Use the agent like normal — ask it to build things, debug code, whatever. When you're done with a conversation, type `/new-chat` to save it. When you want the agent to reflect on what it's learned, type `/dream`.
+
+## Start dreaming
+
+```bash
+uv run python main.py
+```
+
+```
+> hey can you figure out how to connect to my sonos and play some music
+```
+
+The agent will scaffold the project, write the code, and test it. Once you're happy with the result, save the conversation and trigger a dream:
+
+```
+> /new-chat
+> /dream
+```
+
+The agent enters its reflection phase. It reads the transcript, decides the Sonos workflow is worth remembering, and writes a skill file to `skills/`. Next time you start a conversation, that knowledge is already in the system prompt — the agent knows how to work with Sonos without being told again.
+
+## Notable references
+
+- https://github.com/1rgs/nanocode: used for the tools and the tool descriptoins
