@@ -41,7 +41,7 @@ uv run python main.py
 
 Use the agent like normal — ask it to build things, debug code, whatever. When you're done with a conversation, type `/new-chat` to save it. When you want the agent to reflect on what it's learned, type `/dream`.
 
-## Start dreaming
+## Example session
 
 ```bash
 uv run python main.py
