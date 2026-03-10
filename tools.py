@@ -9,37 +9,35 @@ import glob as globlib
 RESET, BOLD, DIM = "\033[0m", "\033[1m", "\033[2m"
 
 
-def read(args):
-    lines = open(args["path"]).readlines()
-    offset = args.get("offset", 0)
-    limit = args.get("limit", len(lines))
+def read(path: str, offset: int = 0, limit: int = None):
+    lines = open(path).readlines()
+    if limit is None:
+        limit = len(lines)
     selected = lines[offset : offset + limit]
     return "".join(f"{offset + idx + 1:4}| {line}" for idx, line in enumerate(selected))
 
 
-def write(args):
-    with open(args["path"], "w") as f:
-        f.write(args["content"])
+def write(path: str, content: str):
+    with open(path, "w") as f:
+        f.write(content)
     return "ok"
 
-def edit(args):
-    text = open(args["path"]).read()
-    old, new = args["old"], args["new"]
+
+def edit(path: str, old: str, new: str, all: bool = False):
+    text = open(path).read()
     if old not in text:
         return "error: old_string not found"
     count = text.count(old)
-    if not args.get("all") and count > 1:
+    if not all and count > 1:
         return f"error: old_string appears {count} times, must be unique (use all=true)"
-    replacement = (
-        text.replace(old, new) if args.get("all") else text.replace(old, new, 1)
-    )
-    with open(args["path"], "w") as f:
+    replacement = text.replace(old, new) if all else text.replace(old, new, 1)
+    with open(path, "w") as f:
         f.write(replacement)
     return "ok"
 
 
-def glob(args):
-    pattern = (args.get("path", ".") + "/" + args["pat"]).replace("//", "/")
+def glob(pat: str, path: str = "."):
+    pattern = (path + "/" + pat).replace("//", "/")
     files = globlib.glob(pattern, recursive=True)
     files = sorted(
         files,
@@ -49,10 +47,10 @@ def glob(args):
     return "\n".join(files) or "none"
 
 
-def grep(args):
-    pattern = re.compile(args["pat"])
+def grep(pat: str, path: str = "."):
+    pattern = re.compile(pat)
     hits = []
-    for filepath in globlib.glob(args.get("path", ".") + "/**", recursive=True):
+    for filepath in globlib.glob(path + "/**", recursive=True):
         try:
             for line_num, line in enumerate(open(filepath), 1):
                 if pattern.search(line):
@@ -62,10 +60,10 @@ def grep(args):
     return "\n".join(hits[:50]) or "none"
 
 
-def bash(args):
-    timeout = float(args.get("timeout", 30))
+def bash(cmd: str, timeout: float = 30):
+    timeout = float(timeout)
     proc = subprocess.Popen(
-        args["cmd"], shell=True,
+        cmd, shell=True,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=False,

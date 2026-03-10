@@ -1,7 +1,7 @@
 [project]
 name = "dreaming-llm"
 version = "0.1.0"
-description = "Add your description here"
+description = "A minimal coding agent that dreams — it reflects on past conversations and distills reusable skills into long-term memory"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

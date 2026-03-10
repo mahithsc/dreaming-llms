@@ -1,20 +1,22 @@
-from agent import coding_agent
+import json
+import os
+import uuid
+from datetime import datetime
+from agent import create_agent
+from dream import dream
 
 SKILLS_DIR = "skills"
 SESSION_DIR = "session"
-CHATS_MANIFEST_PATH = f"{SESSION_DIR}/chats_manifest.json"
+SESSION_MANIFEST_PATH = f"{SESSION_DIR}/session_manifest.json"
 SKILLS_INDEX_PATH = f"{SKILLS_DIR}/skills_index.json"
 
-# initialize the chat and skills directiry
-def init():
-    import json
-    import os
 
+def init():
     os.makedirs(SKILLS_DIR, exist_ok=True)
     os.makedirs(SESSION_DIR, exist_ok=True)
 
     files_to_create = {
-        CHATS_MANIFEST_PATH: [],
+        SESSION_MANIFEST_PATH: [],
         SKILLS_INDEX_PATH: [],
     }
 
@@ -23,21 +25,36 @@ def init():
             with open(path, "w") as f:
                 json.dump(default_content, f, indent=2)
 
-# create a new chat
+
+def load_manifest():
+    with open(SESSION_MANIFEST_PATH) as f:
+        return json.load(f)
+
+
+def save_manifest(manifest):
+    with open(SESSION_MANIFEST_PATH, "w") as f:
+        json.dump(manifest, f, indent=2)
+
+
 def new_chat():
-    import json
-    import os
-    import random
+    if not messages:
+        return
 
-    filename = os.path.join(SESSION_DIR, f"chat_{random.randint(100, 999)}.json")
-    with open(filename, "w") as f:
-        json.dump(messages, f)
+    chat_id = str(uuid.uuid4())
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"chat_{timestamp}.json"
+    filepath = os.path.join(SESSION_DIR, filename)
+
+    with open(filepath, "w") as f:
+        json.dump(messages, f, indent=2)
+
+    manifest = load_manifest()
+    manifest.append({"id": chat_id, "file": filename, "status": "new"})
+    save_manifest(manifest)
+
     messages.clear()
+    print(f"Chat saved: {filename}")
 
-
-# dream about the users input
-def dream():
-    print("Dreaming...")
 
 
 messages = []
@@ -56,7 +73,8 @@ while True:
         continue
     
     messages.append({"role": "user", "content": user_input})
-    response = coding_agent.run(messages, stream=True, stream_events=True)
+    agent = create_agent()
+    response = agent.run(messages, stream=True, stream_events=True)
     for event in response:
         if event.event == "RunContent":
             if event.content != None:
